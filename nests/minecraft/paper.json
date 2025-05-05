@@ -1,0 +1,19 @@
+{
+  "name": "Paper",
+  "description": "High performance Minecraft server",
+  "startup": "java -Xms{{MEMORY}} -Xmx{{MEMORY}} -jar {{SERVER_JARFILE}}",
+  "env": {
+    "EULA": "TRUE",
+    "TYPE": "PAPER",
+    "VERSION": "latest",
+    "MEMORY": "1G",
+    "SERVER_JARFILE": "server.jar"
+  },
+  "image": "itzg/minecraft-server:java21",
+  "ports": [25565],
+  "volumes": ["paper_data"],
+  "install": {
+    "type": "paper",
+    "source": "https://api.papermc.io/v2/projects/paper"
+  }
+}
