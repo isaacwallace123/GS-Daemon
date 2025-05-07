@@ -1,4 +1,4 @@
-package container
+package models
 
 type Container struct {
 	ID       string

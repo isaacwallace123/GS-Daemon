@@ -34,6 +34,7 @@ func (d *DockerClient) CreateContainer(
 	env map[string]string,
 	volumes []string,
 	ports []int,
+	name string,
 ) (string, error) {
 	logger.Docker("Pulling image: %s", imagePath)
 
@@ -52,11 +53,14 @@ func (d *DockerClient) CreateContainer(
 	}
 
 	resp, err := d.cli.ContainerCreate(ctx, &container.Config{
-		Image:  imagePath,
-		Env:    envList,
-		Labels: map[string]string{"com.daemon.uuid": id},
-	}, nil, nil, nil, id)
-
+		Image: imagePath,
+		Env:   envList,
+		Labels: map[string]string{
+			"com.daemon.uuid": id,
+			"com.daemon.name": name,
+			"created_by":      "wings-cli",
+		},
+	}, nil, nil, nil, name)
 	if err != nil {
 		return "", logger.Error("Failed to create container: %v", err)
 	}
@@ -82,11 +86,13 @@ func (d *DockerClient) StopContainer(ctx context.Context, id string) error {
 	logger.Docker("Stopping container: %s", id)
 
 	opts := container.StopOptions{}
+
 	if err := d.cli.ContainerStop(ctx, id, opts); err != nil {
 		return logger.Error("Failed to stop container %s: %v", id, err)
 	}
 
 	logger.Docker("Container stopped: %s", id)
+
 	return nil
 }
 
@@ -100,4 +106,20 @@ func (d *DockerClient) RemoveContainer(ctx context.Context, id string) error {
 	logger.Docker("Container removed: %s", id)
 
 	return nil
+}
+
+func (d *DockerClient) ResolveNameToID(ctx context.Context, name string) (string, error) {
+	containers, err := d.cli.ContainerList(ctx, container.ListOptions{All: true})
+
+	if err != nil {
+		return "", err
+	}
+
+	for _, container := range containers {
+		if container.Labels["com.daemon.name"] == name {
+			return container.ID, nil
+		}
+	}
+
+	return "", fmt.Errorf("container with name '%s' not found", name)
 }

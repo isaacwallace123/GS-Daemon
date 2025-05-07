@@ -2,38 +2,49 @@ package container
 
 import (
 	"Daemon/internal/docker"
+	"Daemon/internal/models"
 	"Daemon/internal/shared/logger"
-
 	"context"
-
 	"github.com/google/uuid"
 )
 
 type Service struct {
 	client docker.Client
 
-	store map[string]*Container
+	store map[string]*models.Container
 }
 
 func NewService(client docker.Client) *Service {
 	return &Service{
 		client: client,
-		store:  make(map[string]*Container),
+		store:  make(map[string]*models.Container),
 	}
 }
 
-func (service *Service) CreateContainer(ctx context.Context, egg Egg) (*Container, error) {
-	id := uuid.New().String()
-
-	dockerID, err := service.client.CreateContainer(ctx, id, egg.Image, egg.Env, egg.Volumes, egg.Ports)
+func (service *Service) CreateContainer(ctx context.Context, name string, eggName string) (*models.Container, error) {
+	eggPath, err := FindEggPathByName(eggName)
 
 	if err != nil {
 		return nil, err
 	}
 
-	c := &Container{
+	egg, err := LoadEgg(eggPath)
+
+	if err != nil {
+		return nil, err
+	}
+
+	id := uuid.New().String()
+
+	dockerID, err := service.client.CreateContainer(ctx, id, egg.Image, egg.Env, egg.Volumes, egg.Ports, name)
+
+	if err != nil {
+		return nil, err
+	}
+
+	newContainer := &models.Container{
 		ID:       id,
-		Name:     egg.Name,
+		Name:     name,
 		Image:    egg.Image,
 		DockerID: dockerID,
 		Status:   "created",
@@ -46,51 +57,44 @@ func (service *Service) CreateContainer(ctx context.Context, egg Egg) (*Containe
   🔌 Ports           : %v
   🗃️ Volumes         : %v`, egg.Startup, egg.Image, egg.Ports, egg.Volumes)
 
-	service.store[id] = c
+	service.store[id] = newContainer
 
-	return c, nil
+	return newContainer, nil
 }
 
-func (service *Service) StartContainer(ctx context.Context, id string) error {
-	if err := service.client.StartContainer(ctx, id); err != nil {
+func (service *Service) StartContainer(ctx context.Context, name string) error {
+	id, err := service.client.ResolveNameToID(ctx, name)
+	if err != nil {
 		return err
 	}
-
-	if container, ok := service.store[id]; ok {
-		container.Status = "running"
-	}
-
-	return nil
+	return service.client.StartContainer(ctx, id)
 }
 
-func (service *Service) StopContainer(ctx context.Context, id string) error {
-	if err := service.client.StopContainer(ctx, id); err != nil {
+func (service *Service) StopContainer(ctx context.Context, name string) error {
+	id, err := service.client.ResolveNameToID(ctx, name)
+	if err != nil {
 		return err
 	}
-
-	if container, ok := service.store[id]; ok {
-		container.Status = "stopped"
-	}
-
-	return nil
+	return service.client.StopContainer(ctx, id)
 }
 
-func (service *Service) RemoveContainer(ctx context.Context, id string) error {
-	if err := service.client.RemoveContainer(ctx, id); err != nil {
+func (service *Service) RemoveContainer(ctx context.Context, name string) error {
+	id, err := service.client.ResolveNameToID(ctx, name)
+	if err != nil {
 		return err
 	}
-
-	delete(service.store, id)
-
-	return nil
+	return service.client.RemoveContainer(ctx, id)
 }
 
-func (service *Service) GetContainer(id string) (*Container, error) {
-	container, ok := service.store[id]
+func (service *Service) GetContainer(ctx context.Context, name string) (*models.Container, error) {
+	id, err := service.client.ResolveNameToID(ctx, name)
 
-	if !ok {
-		return nil, logger.Error("Container not found: %s", id)
+	if err != nil {
+		return nil, err
 	}
 
-	return container, nil
+	return &models.Container{
+		ID:   id,
+		Name: name,
+	}, nil
 }

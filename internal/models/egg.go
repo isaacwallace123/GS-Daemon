@@ -1,4 +1,4 @@
-package container
+package models
 
 type Egg struct {
 	Name        string            `json:"name"`
