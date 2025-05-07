@@ -21,6 +21,7 @@ var (
 	installer = tag{"INSTALLER", "\033[36m"}
 	deployer  = tag{"DEPLOYER", "\033[95m"}
 	system    = tag{"SYSTEM", "\033[32m"}
+	docker    = tag{"DOCKER", "\033[96m"}
 )
 
 const reset = "\033[0m"
@@ -50,3 +51,4 @@ func Updater(message string, args ...interface{})   { log(updater, message, args
 func Installer(message string, args ...interface{}) { log(installer, message, args...) }
 func Deployer(message string, args ...interface{})  { log(deployer, message, args...) }
 func System(message string, args ...interface{})    { log(system, message, args...) }
+func Docker(message string, args ...interface{})    { log(docker, message, args...) }

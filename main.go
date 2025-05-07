@@ -1,36 +1,66 @@
 package main
 
 import (
-	"Daemon/internal/service"
-	"Daemon/pkg/logger"
-	"os"
+	"context"
+	"time"
+
+	"Daemon/internal/container"
+	"Daemon/internal/docker"
+	"Daemon/internal/shared/logger"
 )
 
 func main() {
-	NewEgg, err := service.LoadEgg("nests/minecraft/paper.json", map[string]string{
-		"MEMORY":  "1G",
-		"VERSION": "latest",
-		"EULA":    "TRUE",
-	})
+	logger.System("Starting container service test...")
+
+	ctx := context.Background()
+
+	client, err := docker.NewDockerClient()
 
 	if err != nil {
-		logger.Error("Failed to load egg: %v", err)
-		os.Exit(1)
+		logger.Error("Failed to initialize Docker client: %v", err)
+		return
 	}
 
-	deploy, err := service.NewDockerDeployer()
+	service := container.NewService(client)
+
+	// Load egg
+	egg, err := container.LoadEgg("nests/minecraft/paper.egg.json")
 	if err != nil {
-		logger.Error("Failed to create deployer: %v", err)
-		os.Exit(1)
+		logger.Error("Error loading egg: %v", err)
+		return
 	}
 
-	if err := deploy.Run(NewEgg); err != nil {
-		logger.Error("Deployment failed: %v", err)
-		os.Exit(1)
+	// 1. Create
+	ctr, err := service.CreateContainer(ctx, egg)
+
+	if err != nil {
+		return
 	}
 
-	//time.Sleep(10 * time.Second)
-	//if err := deploy.Stop("test-paper"); err != nil {
-	//	logger.Error("Failed to stop container: %v", err)
-	//}
+	// 2. Start
+	if err := service.StartContainer(ctx, ctr.ID); err != nil {
+		return
+	}
+
+	// 3. Wait a bit for demo
+	time.Sleep(5 * time.Second)
+
+	// 4. Stop
+	if err := service.StopContainer(ctx, ctr.ID); err != nil {
+		return
+	}
+
+	// 5. Get
+	retrieved, err := service.GetContainer(ctr.ID)
+	if err != nil {
+		return
+	}
+	logger.Info("Retrieved container: %+v", retrieved)
+
+	// 6. Remove
+	if err := service.RemoveContainer(ctx, ctr.ID); err != nil {
+		return
+	}
+
+	logger.System("Container lifecycle test complete.")
 }
