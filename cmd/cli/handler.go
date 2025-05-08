@@ -37,8 +37,10 @@ func RunCommand(ctx context.Context, service *container.Service, input []string)
 		}
 	}
 
-	// Run command
-	if err := cmd.Execute(ctx, service, args); err != nil {
+	if err := cmd.Execute(&CommandContext{
+		Ctx:     ctx,
+		Service: service,
+		Args:    args}); err != nil {
 		logger.Error("❌ Command error: %v", err)
 	}
 }

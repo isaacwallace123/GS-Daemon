@@ -2,8 +2,7 @@ package commands
 
 import (
 	"Daemon/cmd/cli"
-	"Daemon/internal/container"
-	"context"
+	"Daemon/internal/shared/logger"
 )
 
 func init() {
@@ -15,12 +14,14 @@ func init() {
 	})
 }
 
-func runRemove(ctx context.Context, service *container.Service, args []string) error {
-	name := args[0]
+func runRemove(c *cli.CommandContext) error {
+	name := c.Args[0]
 
-	if err := service.RemoveContainer(ctx, name); err != nil {
+	if err := c.Service.RemoveContainer(c.Ctx, name); err != nil {
 		return err
 	}
+
+	logger.System("✅ Container '%s' removed successfully.", name)
 
 	return nil
 }

@@ -2,8 +2,7 @@ package commands
 
 import (
 	"Daemon/cmd/cli"
-	"Daemon/internal/container"
-	"context"
+	"Daemon/internal/shared/logger"
 )
 
 func init() {
@@ -15,12 +14,14 @@ func init() {
 	})
 }
 
-func runStop(ctx context.Context, service *container.Service, args []string) error {
-	name := args[0]
+func runStop(c *cli.CommandContext) error {
+	name := c.Args[0]
 
-	if err := service.StopContainer(ctx, name); err != nil {
+	if err := c.Service.StopContainer(c.Ctx, name); err != nil {
 		return err
 	}
+
+	logger.System("✅ Container '%s' stopped successfully.", name)
 
 	return nil
 }

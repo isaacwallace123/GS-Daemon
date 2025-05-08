@@ -1,6 +1,8 @@
 package docker
 
-import "context"
+import (
+	"context"
+)
 
 type Client interface {
 	CreateContainer(

@@ -1,9 +1,6 @@
 package commands
 
 import (
-	"Daemon/internal/container"
-	"context"
-
 	"Daemon/cmd/cli"
 	"Daemon/internal/docker"
 	"Daemon/internal/metrics"
@@ -21,22 +18,22 @@ func init() {
 	})
 }
 
-func runMetrics(ctx context.Context, _ *container.Service, args []string) error {
-	name := args[0]
+func runMetrics(c *cli.CommandContext) error {
+	name := c.Args[0]
 
 	client, err := docker.NewDockerClient()
 	if err != nil {
 		return logger.Error("Docker client error: %v", err)
 	}
 
-	id, err := client.ResolveNameToID(ctx, name)
+	id, err := client.ResolveNameToID(c.Ctx, name)
 	if err != nil {
 		return logger.Error("Failed to resolve container name: %v", err)
 	}
 
 	collector := metrics.NewCollector(client.GetClient())
 
-	data, err := collector.CollectContainerMetrics(ctx, id)
+	data, err := collector.CollectContainerMetrics(c.Ctx, id)
 	if err != nil {
 		return err
 	}

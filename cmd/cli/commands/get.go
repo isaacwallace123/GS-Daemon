@@ -2,9 +2,7 @@ package commands
 
 import (
 	"Daemon/cmd/cli"
-	"Daemon/internal/container"
 	"Daemon/internal/shared/logger"
-	"context"
 )
 
 func init() {
@@ -16,15 +14,15 @@ func init() {
 	})
 }
 
-func runGet(ctx context.Context, service *container.Service, args []string) error {
-	name := args[0]
-	c, err := service.GetContainer(ctx, name)
+func runGet(command *cli.CommandContext) error {
+	name := command.Args[0]
 
+	container, err := command.Service.GetContainer(command.Ctx, name)
 	if err != nil {
 		return err
 	}
 
-	logger.Info("Retrieved container: %+v", c)
+	logger.Info("Retrieved container: %+v", container)
 
 	return nil
 }

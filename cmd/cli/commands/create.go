@@ -1,10 +1,7 @@
 package commands
 
 import (
-	"context"
-
 	"Daemon/cmd/cli"
-	"Daemon/internal/container"
 	"Daemon/internal/shared/logger"
 )
 
@@ -20,12 +17,11 @@ func init() {
 	})
 }
 
-func runCreate(ctx context.Context, service *container.Service, args []string) error {
-	eggName := args[0]
-	containerName := args[1]
+func runCreate(command *cli.CommandContext) error {
+	eggName := command.Args[0]
+	containerName := command.Args[1]
 
-	_, err := service.CreateContainer(ctx, containerName, eggName)
-
+	_, err := command.Service.CreateContainer(command.Ctx, containerName, eggName)
 	if err != nil {
 		return err
 	}

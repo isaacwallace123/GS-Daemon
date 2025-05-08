@@ -15,5 +15,11 @@ type Command struct {
 	Name        string
 	Description string
 	Args        []ArgSpec
-	Execute     func(ctx context.Context, service *container.Service, args []string) error
+	Execute     func(c *CommandContext) error
+}
+
+type CommandContext struct {
+	Ctx     context.Context
+	Service *container.Service
+	Args    []string
 }

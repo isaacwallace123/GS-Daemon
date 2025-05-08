@@ -3,10 +3,13 @@ package docker
 import (
 	"context"
 	"fmt"
+	"github.com/docker/go-connections/nat"
 	"io"
 	"os"
 
 	"Daemon/internal/shared/logger"
+	"Daemon/internal/shared/utils"
+
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
@@ -43,34 +46,59 @@ func (dockerClient *DockerClient) CreateContainer(
 	logger.Docker("Pulling image: %s", imagePath)
 
 	reader, err := dockerClient.cli.ImagePull(ctx, imagePath, image.PullOptions{})
-
 	if err != nil {
 		return "", logger.Error("Failed to pull image: %v", err)
 	}
-
 	io.Copy(io.Discard, reader)
 
 	var envList []string
-
 	for key, val := range env {
 		envList = append(envList, fmt.Sprintf("%s=%s", key, val))
 	}
 
-	resp, err := dockerClient.cli.ContainerCreate(ctx, &container.Config{
-		Image: imagePath,
-		Env:   envList,
+	for _, port := range ports {
+		if utils.IsPortInUse(port) {
+			return "", logger.Error("Port %d is already in use on host", port)
+		}
+	}
+
+	// Prepare exposed ports and bindings
+	exposedPorts := nat.PortSet{}
+	portBindings := nat.PortMap{}
+	for _, port := range ports {
+		dockerPort := nat.Port(fmt.Sprintf("%d/tcp", port))
+		exposedPorts[dockerPort] = struct{}{}
+		portBindings[dockerPort] = []nat.PortBinding{
+			{
+				HostIP:   "0.0.0.0",
+				HostPort: fmt.Sprintf("%d", port),
+			},
+		}
+	}
+
+	containerConfig := &container.Config{
+		Image:        imagePath,
+		Env:          envList,
+		OpenStdin:    true,
+		Tty:          true,
+		ExposedPorts: exposedPorts,
 		Labels: map[string]string{
 			"com.daemon.uuid": id,
 			"com.daemon.name": name,
 			"created_by":      "wings-cli",
 		},
-	}, nil, nil, nil, name)
+	}
+
+	hostConfig := &container.HostConfig{
+		PortBindings: portBindings,
+	}
+
+	resp, err := dockerClient.cli.ContainerCreate(ctx, containerConfig, hostConfig, nil, nil, name)
 	if err != nil {
 		return "", logger.Error("Failed to create container: %v", err)
 	}
 
 	logger.Docker("Container created: DockerID=%s", resp.ID)
-
 	return resp.ID, nil
 }
 
@@ -126,4 +154,14 @@ func (dockerClient *DockerClient) ResolveNameToID(ctx context.Context, name stri
 	}
 
 	return "", fmt.Errorf("container with name '%s' not found", name)
+}
+
+func LogOptions() container.LogsOptions {
+	return container.LogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+		Timestamps: false,
+		Follow:     true,
+		Tail:       "100",
+	}
 }

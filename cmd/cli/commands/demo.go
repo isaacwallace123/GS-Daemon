@@ -1,11 +1,9 @@
 package commands
 
 import (
-	"context"
 	"time"
 
 	"Daemon/cmd/cli"
-	"Daemon/internal/container"
 	"Daemon/internal/shared/logger"
 )
 
@@ -18,36 +16,27 @@ func init() {
 	})
 }
 
-func runDemo(ctx context.Context, service *container.Service, _ []string) error {
+func runDemo(command *cli.CommandContext) error {
 	logger.Info("Running 30-second container demo...")
 
-	newContainer, err := service.CreateContainer(ctx, "paper-demo", "paper")
-
+	newContainer, err := command.Service.CreateContainer(command.Ctx, "paper-demo", "paper")
 	if err != nil {
 		return err
 	}
 
-	err = service.StartContainer(ctx, newContainer.Name)
-
-	if err != nil {
+	if err := command.Service.StartContainer(command.Ctx, newContainer.Name); err != nil {
 		return err
 	}
-
 	time.Sleep(5 * time.Second)
 
-	err = service.StopContainer(ctx, newContainer.Name)
-
-	if err != nil {
+	if err := command.Service.StopContainer(command.Ctx, newContainer.Name); err != nil {
 		return err
 	}
 
-	err = service.RemoveContainer(ctx, newContainer.Name)
-
-	if err != nil {
+	if err := command.Service.RemoveContainer(command.Ctx, newContainer.Name); err != nil {
 		return err
 	}
 
 	logger.System("✅ Demo complete.")
-
 	return nil
 }
