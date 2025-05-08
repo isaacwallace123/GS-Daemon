@@ -28,7 +28,11 @@ func NewDockerClient() (*DockerClient, error) {
 	return &DockerClient{cli: cli}, nil
 }
 
-func (d *DockerClient) CreateContainer(
+func (dockerClient *DockerClient) GetClient() *client.Client {
+	return dockerClient.cli
+}
+
+func (dockerClient *DockerClient) CreateContainer(
 	ctx context.Context,
 	id, imagePath string,
 	env map[string]string,
@@ -38,7 +42,7 @@ func (d *DockerClient) CreateContainer(
 ) (string, error) {
 	logger.Docker("Pulling image: %s", imagePath)
 
-	reader, err := d.cli.ImagePull(ctx, imagePath, image.PullOptions{})
+	reader, err := dockerClient.cli.ImagePull(ctx, imagePath, image.PullOptions{})
 
 	if err != nil {
 		return "", logger.Error("Failed to pull image: %v", err)
@@ -52,7 +56,7 @@ func (d *DockerClient) CreateContainer(
 		envList = append(envList, fmt.Sprintf("%s=%s", key, val))
 	}
 
-	resp, err := d.cli.ContainerCreate(ctx, &container.Config{
+	resp, err := dockerClient.cli.ContainerCreate(ctx, &container.Config{
 		Image: imagePath,
 		Env:   envList,
 		Labels: map[string]string{
@@ -70,10 +74,10 @@ func (d *DockerClient) CreateContainer(
 	return resp.ID, nil
 }
 
-func (d *DockerClient) StartContainer(ctx context.Context, id string) error {
+func (dockerClient *DockerClient) StartContainer(ctx context.Context, id string) error {
 	logger.Docker("Starting container: %s", id)
 
-	if err := d.cli.ContainerStart(ctx, id, container.StartOptions{}); err != nil {
+	if err := dockerClient.cli.ContainerStart(ctx, id, container.StartOptions{}); err != nil {
 		return logger.Error("Failed to start container %s: %v", id, err)
 	}
 
@@ -82,12 +86,12 @@ func (d *DockerClient) StartContainer(ctx context.Context, id string) error {
 	return nil
 }
 
-func (d *DockerClient) StopContainer(ctx context.Context, id string) error {
+func (dockerClient *DockerClient) StopContainer(ctx context.Context, id string) error {
 	logger.Docker("Stopping container: %s", id)
 
 	opts := container.StopOptions{}
 
-	if err := d.cli.ContainerStop(ctx, id, opts); err != nil {
+	if err := dockerClient.cli.ContainerStop(ctx, id, opts); err != nil {
 		return logger.Error("Failed to stop container %s: %v", id, err)
 	}
 
@@ -96,10 +100,10 @@ func (d *DockerClient) StopContainer(ctx context.Context, id string) error {
 	return nil
 }
 
-func (d *DockerClient) RemoveContainer(ctx context.Context, id string) error {
+func (dockerClient *DockerClient) RemoveContainer(ctx context.Context, id string) error {
 	logger.Docker("Removing container: %s", id)
 
-	if err := d.cli.ContainerRemove(ctx, id, container.RemoveOptions{Force: true}); err != nil {
+	if err := dockerClient.cli.ContainerRemove(ctx, id, container.RemoveOptions{Force: true}); err != nil {
 		return logger.Error("Failed to remove container %s: %v", id, err)
 	}
 
@@ -108,8 +112,8 @@ func (d *DockerClient) RemoveContainer(ctx context.Context, id string) error {
 	return nil
 }
 
-func (d *DockerClient) ResolveNameToID(ctx context.Context, name string) (string, error) {
-	containers, err := d.cli.ContainerList(ctx, container.ListOptions{All: true})
+func (dockerClient *DockerClient) ResolveNameToID(ctx context.Context, name string) (string, error) {
+	containers, err := dockerClient.cli.ContainerList(ctx, container.ListOptions{All: true})
 
 	if err != nil {
 		return "", err
