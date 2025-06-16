@@ -88,13 +88,20 @@ func (service *Service) RemoveContainer(ctx context.Context, name string) error 
 
 func (service *Service) GetContainer(ctx context.Context, name string) (*models.Container, error) {
 	id, err := service.client.ResolveNameToID(ctx, name)
+	if err != nil {
+		return nil, err
+	}
 
+	inspect, err := service.client.GetContainerByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
 	return &models.Container{
-		ID:   id,
-		Name: name,
+		ID:       id,
+		Name:     name,
+		Image:    inspect.Config.Image,
+		DockerID: id,
+		Status:   inspect.State.Status,
 	}, nil
 }

@@ -140,6 +140,16 @@ func (dockerClient *DockerClient) RemoveContainer(ctx context.Context, id string
 	return nil
 }
 
+func (dockerClient *DockerClient) GetContainerByID(ctx context.Context, id string) (*container.InspectResponse, error) {
+	containerJSON, err := dockerClient.cli.ContainerInspect(ctx, id)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to inspect container %s: %w", id, err)
+	}
+
+	return &containerJSON, nil
+}
+
 func (dockerClient *DockerClient) ResolveNameToID(ctx context.Context, name string) (string, error) {
 	containers, err := dockerClient.cli.ContainerList(ctx, container.ListOptions{All: true})
 

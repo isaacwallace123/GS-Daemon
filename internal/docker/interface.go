@@ -2,6 +2,7 @@ package docker
 
 import (
 	"context"
+	"github.com/docker/docker/api/types/container"
 )
 
 type Client interface {
@@ -16,6 +17,7 @@ type Client interface {
 	StartContainer(ctx context.Context, name string) error
 	StopContainer(ctx context.Context, name string) error
 	RemoveContainer(ctx context.Context, name string) error
+	GetContainerByID(ctx context.Context, id string) (*container.InspectResponse, error)
 
 	ResolveNameToID(ctx context.Context, name string) (string, error)
 }
