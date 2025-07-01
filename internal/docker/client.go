@@ -6,10 +6,14 @@ import (
 	"github.com/docker/go-connections/nat"
 	"io"
 	"os"
+	"os/signal"
+
+	"golang.org/x/term"
 
 	"Daemon/internal/shared/logger"
 	"Daemon/internal/shared/utils"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
@@ -174,4 +178,59 @@ func LogOptions() container.LogsOptions {
 		Follow:     true,
 		Tail:       "100",
 	}
+}
+
+// GetContainerLogs retrieves logs for the given container ID using the default
+// log options.
+func (dockerClient *DockerClient) GetContainerLogs(ctx context.Context, id string) (io.ReadCloser, error) {
+	logger.Docker("Fetching logs for container: %s", id)
+
+	reader, err := dockerClient.cli.ContainerLogs(ctx, id, LogOptions())
+	if err != nil {
+		return nil, logger.Error("Failed to get logs for %s: %v", id, err)
+	}
+
+	return reader, nil
+}
+
+// ExecInteractive runs a command in a container and attaches the current
+// terminal so the user can interact with the process.
+func (dockerClient *DockerClient) ExecInteractive(ctx context.Context, id string, cmd []string) error {
+	execConfig := types.ExecConfig{
+		Cmd:          cmd,
+		AttachStdin:  true,
+		AttachStdout: true,
+		AttachStderr: true,
+		Tty:          true,
+	}
+
+	execResp, err := dockerClient.cli.ContainerExecCreate(ctx, id, execConfig)
+	if err != nil {
+		return logger.Error("Failed to create exec instance: %v", err)
+	}
+
+	attach, err := dockerClient.cli.ContainerExecAttach(ctx, execResp.ID, types.ExecStartCheck{Tty: true})
+	if err != nil {
+		return logger.Error("Failed to attach to exec instance: %v", err)
+	}
+	defer attach.Close()
+
+	if !term.IsTerminal(int(os.Stdin.Fd())) {
+		return logger.Error("stdin is not a terminal — cannot enter raw mode")
+	}
+
+	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
+	if err != nil {
+		return logger.Error("Failed to set terminal raw mode: %v", err)
+	}
+	defer term.Restore(int(os.Stdin.Fd()), oldState)
+
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, os.Interrupt)
+
+	go func() { io.Copy(attach.Conn, os.Stdin) }()
+	go func() { io.Copy(os.Stdout, attach.Reader) }()
+
+	<-sigs
+	return nil
 }
