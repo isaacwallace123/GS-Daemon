@@ -13,7 +13,6 @@ import (
 	"Daemon/internal/shared/logger"
 	"Daemon/internal/shared/utils"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
@@ -196,7 +195,7 @@ func (dockerClient *DockerClient) GetContainerLogs(ctx context.Context, id strin
 // ExecInteractive runs a command in a container and attaches the current
 // terminal so the user can interact with the process.
 func (dockerClient *DockerClient) ExecInteractive(ctx context.Context, id string, cmd []string) error {
-	execConfig := types.ExecConfig{
+	execConfig := container.ExecOptions{
 		Cmd:          cmd,
 		AttachStdin:  true,
 		AttachStdout: true,
@@ -209,7 +208,7 @@ func (dockerClient *DockerClient) ExecInteractive(ctx context.Context, id string
 		return logger.Error("Failed to create exec instance: %v", err)
 	}
 
-	attach, err := dockerClient.cli.ContainerExecAttach(ctx, execResp.ID, types.ExecStartCheck{Tty: true})
+	attach, err := dockerClient.cli.ContainerExecAttach(ctx, execResp.ID, container.ExecAttachOptions{Tty: true})
 	if err != nil {
 		return logger.Error("Failed to attach to exec instance: %v", err)
 	}
