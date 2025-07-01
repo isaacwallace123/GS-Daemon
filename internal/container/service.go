@@ -6,6 +6,8 @@ import (
 	"Daemon/internal/shared/logger"
 	"context"
 	"github.com/google/uuid"
+	"io"
+	"os"
 )
 
 type Service struct {
@@ -104,4 +106,29 @@ func (service *Service) GetContainer(ctx context.Context, name string) (*models.
 		DockerID: id,
 		Status:   inspect.State.Status,
 	}, nil
+}
+
+// ExecCommand executes a command interactively inside the specified container.
+func (service *Service) ExecCommand(ctx context.Context, name string, cmd []string) error {
+	id, err := service.client.ResolveNameToID(ctx, name)
+	if err != nil {
+		return err
+	}
+	return service.client.ExecInteractive(ctx, id, cmd)
+}
+
+// StreamLogs prints the latest logs from the specified container and
+// continues following them until interrupted.
+func (service *Service) StreamLogs(ctx context.Context, name string) error {
+	id, err := service.client.ResolveNameToID(ctx, name)
+	if err != nil {
+		return err
+	}
+	reader, err := service.client.GetContainerLogs(ctx, id)
+	if err != nil {
+		return err
+	}
+	defer reader.Close()
+	_, err = io.Copy(os.Stdout, reader)
+	return err
 }

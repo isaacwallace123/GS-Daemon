@@ -3,6 +3,7 @@ package docker
 import (
 	"context"
 	"github.com/docker/docker/api/types/container"
+	"io"
 )
 
 type Client interface {
@@ -20,4 +21,11 @@ type Client interface {
 	GetContainerByID(ctx context.Context, id string) (*container.InspectResponse, error)
 
 	ResolveNameToID(ctx context.Context, name string) (string, error)
+
+	// ExecInteractive runs a command inside the given container ID and
+	// attaches the current terminal for interactive input/output.
+	ExecInteractive(ctx context.Context, id string, cmd []string) error
+
+	// GetContainerLogs returns a reader for the container's logs.
+	GetContainerLogs(ctx context.Context, id string) (io.ReadCloser, error)
 }
